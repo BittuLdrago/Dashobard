@@ -59,6 +59,17 @@ if opportunity_data is not None and user_data is not None:
     else:
         st.warning("⚠️ 'UserName' or 'Opportunities' column missing in User Data.")
 
+    if opportunity_data is None or user_data is None:
+    st.warning("📥 Upload your data files manually below.")
+    uploaded_opportunity = st.file_uploader("Upload OpportunityWiseData_Aligned.csv", type=['csv'])
+    uploaded_user = st.file_uploader("Upload UserData_Aligned.csv", type=['csv'])
+
+    if uploaded_opportunity is not None:
+        opportunity_data = pd.read_csv(uploaded_opportunity)
+
+    if uploaded_user is not None:
+        user_data = pd.read_csv(uploaded_user)
+
     # Filters for deeper analysis
     if 'Stage' in opportunity_data.columns:
         st.subheader("🔍 Filter Opportunities by Stage")
