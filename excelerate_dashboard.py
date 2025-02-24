@@ -10,8 +10,8 @@ st.title("Excelerate Dashboard")
 # Load the datasets
 @st.cache_data
 def load_data():
-    opportunity_data = pd.read_csv('OpportunitiesData_Aligned.csv')
-    user_data = pd.read_csv('UserData_Aligned.csv')
+    opportunity_data = pd.read_csv('data/OpportunitiesData_Aligned.csv')
+    user_data = pd.read_csv('data/UserData_Aligned.csv')
     return opportunity_data, user_data
 
 opportunity_data, user_data = load_data()
