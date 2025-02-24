@@ -1,47 +1,75 @@
-import streamlit as st
 import pandas as pd
+import numpy as np
+import plotly.express as px
+import streamlit as st
 
-# Load the cleaned datasets
-opportunity_data = pd.read_csv("OpportunityWiseData_Aligned.csv")
-user_data = pd.read_csv("UserData_Aligned.csv")
+# Set up the Streamlit app
+st.set_page_config(page_title="Excelerate Dashboard", layout="wide")
+st.title("Excelerate Dashboard")
 
-# Ensure 'Profile Id' exists in both datasets and has the same data type
-opportunity_data.rename(columns=lambda x: x.strip(), inplace=True)
-user_data.rename(columns=lambda x: x.strip(), inplace=True)
+# Load the datasets
+@st.cache_data
+def load_data():
+    opportunity_data = pd.read_csv('OpportunitiesData_Aligned.csv')
+    user_data = pd.read_csv('UserData_Aligned.csv')
+    return opportunity_data, user_data
 
-if 'Profile Id' in opportunity_data.columns and 'Profile Id' in user_data.columns:
-    opportunity_data['Profile Id'] = opportunity_data['Profile Id'].astype(str)
-    user_data['Profile Id'] = user_data['Profile Id'].astype(str)
+opportunity_data, user_data = load_data()
 
-    # Merge datasets on 'Profile Id'
-    merged_data = pd.merge(opportunity_data, user_data, on='Profile Id', how='left')
-else:
-    st.error("The 'Profile Id' column is missing from one of the files. Please check your CSV files.")
+# Convert 'Profile Id' columns to the same data type (string)
+opportunity_data['Profile Id'] = opportunity_data['Profile Id'].astype(str)
+user_data['Profile Id'] = user_data['Profile Id'].astype(str)
 
-# Display the dashboard title
-st.title("Excelerate Platform Dashboard")
+# Merge datasets on 'Profile Id'
+merged_data = pd.merge(opportunity_data, user_data, on='Profile Id', how='inner')
 
-# Example Metrics
-total_users = merged_data['Profile Id'].nunique()
-signed_up_opportunities = merged_data[merged_data['Status Description'] == 'Signed Up'].shape[0]
+# Sidebar filters
+st.sidebar.header("Filter the data")
+selected_country = st.sidebar.multiselect(
+    "Select Country:",
+    options=merged_data['Country'].unique(),
+    default=merged_data['Country'].unique()
+)
 
-st.metric("Total Users Signed Up", total_users)
-st.metric("Opportunities Signed Up", signed_up_opportunities)
+selected_program_type = st.sidebar.multiselect(
+    "Select Program Type:",
+    options=merged_data['Program Type'].unique(),
+    default=merged_data['Program Type'].unique()
+)
 
-# Top 10 countries by signups
-st.subheader("Top 10 Countries by Signups")
-top_countries = merged_data['Country'].value_counts().head(10)
-st.bar_chart(top_countries)
+# Apply filters
+filtered_data = merged_data[
+    (merged_data['Country'].isin(selected_country)) &
+    (merged_data['Program Type'].isin(selected_program_type))
+]
 
-# US Cities signups
-st.subheader("US Cities Signups")
-us_cities = merged_data[merged_data['Country'] == 'United States']['City'].value_counts().head(10)
-st.bar_chart(us_cities)
+# Display summary statistics
+st.subheader("Summary Statistics")
+st.write(filtered_data.describe())
 
-# Most popular opportunity signed up for
-st.subheader("Most Popular Opportunity Signed Up For")
-popular_opportunity = merged_data['Opportunity Name'].value_counts().idxmax()
-st.write(f"**{popular_opportunity}**")
+# Visualizations
+st.subheader("Opportunities by Country")
+opportunity_country = filtered_data['Country'].value_counts().reset_index()
+opportunity_country.columns = ['Country', 'Count']
+fig_country = px.bar(opportunity_country, x='Country', y='Count', title='Opportunities by Country')
+st.plotly_chart(fig_country, use_container_width=True)
 
-# Run the Streamlit app
-st.success("Dashboard is running successfully!")
+st.subheader("Program Types Distribution")
+program_type_count = filtered_data['Program Type'].value_counts().reset_index()
+program_type_count.columns = ['Program Type', 'Count']
+fig_program = px.pie(program_type_count, names='Program Type', values='Count', title='Program Types Distribution')
+st.plotly_chart(fig_program, use_container_width=True)
+
+# Display filtered data table
+st.subheader("Filtered Data")
+st.dataframe(filtered_data)
+
+# Export filtered data
+st.subheader("Download Filtered Data")
+csv = filtered_data.to_csv(index=False).encode('utf-8')
+st.download_button(
+    label="Download as CSV",
+    data=csv,
+    file_name='filtered_data.csv',
+    mime='text/csv',
+)
