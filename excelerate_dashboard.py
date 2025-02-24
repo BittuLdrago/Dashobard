@@ -10,8 +10,8 @@ st.markdown("### A Comparative Trend Analysis Dashboard for Opportunities and Us
 @st.cache_data
 def load_data():
     try:
-        opportunity_data = pd.read_csv('data/OpportunitiesData_Aligned.csv')
-        user_data = pd.read_csv('data/UserData.csv')
+        opportunity_data = pd.read_csv('OpportunitiesData_Aligned.csv')
+        user_data = pd.read_csv('UserData.csv')
         return opportunity_data, user_data
     except FileNotFoundError as e:
         st.error(f"File not found: {e}")
