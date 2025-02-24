@@ -2,10 +2,11 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Set up the Streamlit page
+# Set the title of the dashboard
 st.set_page_config(page_title="Excelerate Dashboard", layout="wide")
+st.title("📊 Excelerate Dashboard")
 
-# Load data from CSV files in the root directory
+# Load the data
 @st.cache_data
 def load_data():
     try:
@@ -13,68 +14,56 @@ def load_data():
         user_data = pd.read_csv('UserData_Aligned.csv')
         return opportunity_data, user_data
     except FileNotFoundError as e:
-        st.error(f"File not found: {e}")
+        st.error(f"❌ File not found: {e}")
         return None, None
 
-# Load actual data
+# Load CSV files from the root directory
 opportunity_data, user_data = load_data()
 
 # Check if the data loaded successfully
 if opportunity_data is not None and user_data is not None:
-    # Dashboard Title
-    st.title("📊 Excelerate Dashboard")
+    # Basic data preview
+    st.subheader("📄 Data Overview")
+    st.write("### Opportunities Data Sample")
+    st.dataframe(opportunity_data.head())
 
-    # Opportunity Stage Distribution
-    if 'Stage' in opportunity_data.columns:
-        st.subheader("🚀 Opportunity Stage Distribution")
+    st.write("### User Data Sample")
+    st.dataframe(user_data.head())
+
+    # Check if required columns exist
+    if 'Stage' in opportunity_data.columns and 'UserName' in user_data.columns:
+        # Stage-wise Opportunity Count
+        st.subheader("📈 Opportunity Stage Distribution")
         stage_counts = opportunity_data['Stage'].value_counts().reset_index()
         stage_counts.columns = ['Stage', 'Count']
-
-        fig_stage = px.bar(
-            stage_counts, 
-            x='Stage', 
-            y='Count', 
-            color='Stage',
-            title="Distribution of Opportunity Stages",
-            color_discrete_sequence=px.colors.qualitative.Pastel
-        )
+        fig_stage = px.bar(stage_counts, x='Stage', y='Count', color='Stage', title="Opportunities by Stage")
         st.plotly_chart(fig_stage, use_container_width=True)
+
+        # User-wise Opportunity Count
+        st.subheader("👤 User Opportunity Distribution")
+        user_counts = opportunity_data['UserName'].value_counts().reset_index()
+        user_counts.columns = ['UserName', 'Count']
+        fig_user = px.bar(user_counts, x='UserName', y='Count', color='UserName', title="Opportunities by User")
+        st.plotly_chart(fig_user, use_container_width=True)
+
+        # Monthly Trend Analysis
+        st.subheader("📅 Monthly Opportunity Trends")
+        if 'CreatedDate' in opportunity_data.columns:
+            opportunity_data['CreatedDate'] = pd.to_datetime(opportunity_data['CreatedDate'])
+            opportunity_data['Month'] = opportunity_data['CreatedDate'].dt.to_period('M').astype(str)
+            monthly_trend = opportunity_data.groupby('Month').size().reset_index(name='Count')
+            fig_monthly = px.line(monthly_trend, x='Month', y='Count', title='Monthly Opportunity Creation Trend')
+            st.plotly_chart(fig_monthly, use_container_width=True)
+        else:
+            st.warning("⚠️ 'CreatedDate' column not found in Opportunity Data.")
     else:
-        st.warning("⚠️ No 'Stage' column found in Opportunity Data.")
-
-    # Top Performing Users
-    if 'UserName' in user_data.columns and 'Opportunities' in user_data.columns:
-        st.subheader("🏆 Top Performing Users")
-        top_users = user_data.sort_values(by='Opportunities', ascending=False).head(10)
-
-        fig_users = px.bar(
-            top_users, 
-            x='UserName', 
-            y='Opportunities', 
-            color='UserName',
-            title="Top 10 Users by Opportunities",
-            color_discrete_sequence=px.colors.qualitative.Bold
-        )
-        st.plotly_chart(fig_users, use_container_width=True)
-    else:
-        st.warning("⚠️ 'UserName' or 'Opportunities' column missing in User Data.")
-
-    if opportunity_data is None or user_data is None:
-    st.warning("📥 Upload your data files manually below.")
+        st.error("❌ Required columns ('Stage' in Opportunities or 'UserName' in User Data) not found.")
+else:
+    st.warning("📥 Please upload your data files manually.")
     uploaded_opportunity = st.file_uploader("Upload OpportunityWiseData_Aligned.csv", type=['csv'])
     uploaded_user = st.file_uploader("Upload UserData_Aligned.csv", type=['csv'])
 
-    if uploaded_opportunity is not None:
+    if uploaded_opportunity is not None and uploaded_user is not None:
         opportunity_data = pd.read_csv(uploaded_opportunity)
-
-    if uploaded_user is not None:
         user_data = pd.read_csv(uploaded_user)
-
-    # Filters for deeper analysis
-    if 'Stage' in opportunity_data.columns:
-        st.subheader("🔍 Filter Opportunities by Stage")
-        selected_stage = st.selectbox("Select a stage to filter:", opportunity_data['Stage'].unique())
-        filtered_data = opportunity_data[opportunity_data['Stage'] == selected_stage]
-        st.dataframe(filtered_data)
-else:
-    st.error("❌ Failed to load data. Please check if the CSV files are in the root directory.")
+        st.success("✅ Files uploaded successfully. Please rerun the app.")
