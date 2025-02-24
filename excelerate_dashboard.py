@@ -1,32 +1,69 @@
-import streamlit as st import pandas as pd import plotly.express as px
+import streamlit as st
+import pandas as pd
+import plotly.express as px
 
-Load Data
+# Set up the Streamlit page
+st.set_page_config(page_title="Excelerate Dashboard", layout="wide")
 
-def load_data(): opportunity_data = pd.read_csv('OpportunityWiseData_Aligned.csv') user_data = pd.read_csv('UserData_Aligned.csv') return opportunity_data, user_data
+# Load data from CSV files in the root directory
+@st.cache_data
+def load_data():
+    try:
+        opportunity_data = pd.read_csv('OpportunityWiseData_Aligned.csv')
+        user_data = pd.read_csv('UserData_Aligned.csv')
+        return opportunity_data, user_data
+    except FileNotFoundError as e:
+        st.error(f"File not found: {e}")
+        return None, None
 
-Load datasets
-
+# Load actual data
 opportunity_data, user_data = load_data()
 
-Title
+# Check if the data loaded successfully
+if opportunity_data is not None and user_data is not None:
+    # Dashboard Title
+    st.title("📊 Excelerate Dashboard")
 
-st.title('Excelerate Dashboard')
+    # Opportunity Stage Distribution
+    if 'Stage' in opportunity_data.columns:
+        st.subheader("🚀 Opportunity Stage Distribution")
+        stage_counts = opportunity_data['Stage'].value_counts().reset_index()
+        stage_counts.columns = ['Stage', 'Count']
 
-Opportunity Stage-wise Distribution
+        fig_stage = px.bar(
+            stage_counts, 
+            x='Stage', 
+            y='Count', 
+            color='Stage',
+            title="Distribution of Opportunity Stages",
+            color_discrete_sequence=px.colors.qualitative.Pastel
+        )
+        st.plotly_chart(fig_stage, use_container_width=True)
+    else:
+        st.warning("⚠️ No 'Stage' column found in Opportunity Data.")
 
-if 'Stage' in opportunity_data.columns: st.subheader('Opportunity Stage-wise Distribution') stage_count = opportunity_data['Stage'].value_counts().reset_index() stage_count.columns = ['Stage', 'Count'] fig_stage = px.bar(stage_count, x='Stage', y='Count', color='Stage', title='Distribution of Opportunities by Stage') st.plotly_chart(fig_stage) else: st.warning("No 'Stage' column found in Opportunity Data.")
+    # Top Performing Users
+    if 'UserName' in user_data.columns and 'Opportunities' in user_data.columns:
+        st.subheader("🏆 Top Performing Users")
+        top_users = user_data.sort_values(by='Opportunities', ascending=False).head(10)
 
-Top Users by Opportunities Created
+        fig_users = px.bar(
+            top_users, 
+            x='UserName', 
+            y='Opportunities', 
+            color='UserName',
+            title="Top 10 Users by Opportunities",
+            color_discrete_sequence=px.colors.qualitative.Bold
+        )
+        st.plotly_chart(fig_users, use_container_width=True)
+    else:
+        st.warning("⚠️ 'UserName' or 'Opportunities' column missing in User Data.")
 
-if 'UserName' in user_data.columns: st.subheader('Top Users by Opportunities Created') user_opps = user_data['UserName'].value_counts().reset_index() user_opps.columns = ['UserName', 'Opportunities'] fig_users = px.bar(user_opps.head(10), x='UserName', y='Opportunities', color='Opportunities', title='Top 10 Users by Opportunities Created') st.plotly_chart(fig_users) else: st.warning("No 'UserName' column found in User Data.")
-
-Opportunity Amount Analysis
-
-if 'Amount' in opportunity_data.columns: st.subheader('Opportunity Amount Analysis') amount_by_stage = opportunity_data.groupby('Stage')['Amount'].sum().reset_index() fig_amount = px.pie(amount_by_stage, names='Stage', values='Amount', title='Total Opportunity Amount by Stage') st.plotly_chart(fig_amount) else: st.warning("No 'Amount' column found in Opportunity Data.")
-
-Data Preview
-
-st.subheader('Raw Data Preview') if st.checkbox('Show Opportunity Data'): st.dataframe(opportunity_data)
-
-if st.checkbox('Show User Data'): st.dataframe(user_data)
-
+    # Filters for deeper analysis
+    if 'Stage' in opportunity_data.columns:
+        st.subheader("🔍 Filter Opportunities by Stage")
+        selected_stage = st.selectbox("Select a stage to filter:", opportunity_data['Stage'].unique())
+        filtered_data = opportunity_data[opportunity_data['Stage'] == selected_stage]
+        st.dataframe(filtered_data)
+else:
+    st.error("❌ Failed to load data. Please check if the CSV files are in the root directory.")
