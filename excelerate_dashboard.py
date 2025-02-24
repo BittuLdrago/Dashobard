@@ -1,75 +1,45 @@
-import pandas as pd
-import numpy as np
-import plotly.express as px
 import streamlit as st
+import pandas as pd
+import plotly.express as px
 
-# Set up the Streamlit app
-st.set_page_config(page_title="Excelerate Dashboard", layout="wide")
+# Title of the Dashboard
 st.title("Excelerate Dashboard")
 
-# Load the datasets
-@st.cache_data
-def load_data():
-    opportunity_data = pd.read_csv('data/OpportunitiesData_Aligned.csv')
-    user_data = pd.read_csv('data/UserData_Aligned.csv')
-    return opportunity_data, user_data
+# File uploader for CSV files
+opportunity_file = st.file_uploader("Upload Opportunities Data CSV", type="csv")
+user_file = st.file_uploader("Upload User Data CSV", type="csv")
 
-opportunity_data, user_data = load_data()
+# Load data if both files are uploaded
+if opportunity_file is not None and user_file is not None:
+    # Read uploaded CSV files
+    opportunity_data = pd.read_csv(opportunity_file)
+    user_data = pd.read_csv(user_file)
 
-# Convert 'Profile Id' columns to the same data type (string)
-opportunity_data['Profile Id'] = opportunity_data['Profile Id'].astype(str)
-user_data['Profile Id'] = user_data['Profile Id'].astype(str)
+    st.success("Files uploaded successfully!")
 
-# Merge datasets on 'Profile Id'
-merged_data = pd.merge(opportunity_data, user_data, on='Profile Id', how='inner')
+    # Display uploaded data
+    st.subheader("Opportunities Data")
+    st.dataframe(opportunity_data)
 
-# Sidebar filters
-st.sidebar.header("Filter the data")
-selected_country = st.sidebar.multiselect(
-    "Select Country:",
-    options=merged_data['Country'].unique(),
-    default=merged_data['Country'].unique()
-)
+    st.subheader("User Data")
+    st.dataframe(user_data)
 
-selected_program_type = st.sidebar.multiselect(
-    "Select Program Type:",
-    options=merged_data['Program Type'].unique(),
-    default=merged_data['Program Type'].unique()
-)
+    # Visualization - Opportunities by Stage
+    if 'Stage' in opportunity_data.columns:
+        st.subheader("Opportunities by Stage")
+        fig = px.bar(opportunity_data, x='Stage', title="Opportunities by Stage")
+        st.plotly_chart(fig)
+    else:
+        st.error("No 'Stage' column found in Opportunities Data.")
 
-# Apply filters
-filtered_data = merged_data[
-    (merged_data['Country'].isin(selected_country)) &
-    (merged_data['Program Type'].isin(selected_program_type))
-]
-
-# Display summary statistics
-st.subheader("Summary Statistics")
-st.write(filtered_data.describe())
-
-# Visualizations
-st.subheader("Opportunities by Country")
-opportunity_country = filtered_data['Country'].value_counts().reset_index()
-opportunity_country.columns = ['Country', 'Count']
-fig_country = px.bar(opportunity_country, x='Country', y='Count', title='Opportunities by Country')
-st.plotly_chart(fig_country, use_container_width=True)
-
-st.subheader("Program Types Distribution")
-program_type_count = filtered_data['Program Type'].value_counts().reset_index()
-program_type_count.columns = ['Program Type', 'Count']
-fig_program = px.pie(program_type_count, names='Program Type', values='Count', title='Program Types Distribution')
-st.plotly_chart(fig_program, use_container_width=True)
-
-# Display filtered data table
-st.subheader("Filtered Data")
-st.dataframe(filtered_data)
-
-# Export filtered data
-st.subheader("Download Filtered Data")
-csv = filtered_data.to_csv(index=False).encode('utf-8')
-st.download_button(
-    label="Download as CSV",
-    data=csv,
-    file_name='filtered_data.csv',
-    mime='text/csv',
-)
+    # Visualization - User Analysis (Example)
+    if 'UserName' in user_data.columns:
+        st.subheader("User Participation")
+        user_counts = user_data['UserName'].value_counts().reset_index()
+        user_counts.columns = ['UserName', 'Count']
+        fig = px.pie(user_counts, names='UserName', values='Count', title="User Participation Breakdown")
+        st.plotly_chart(fig)
+    else:
+        st.error("No 'UserName' column found in User Data.")
+else:
+    st.warning("Please upload both CSV files to proceed.")
